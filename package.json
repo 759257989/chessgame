@@ -1,0 +1,9 @@
+{
+  "name": "rbc-chess-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "test": "npm --prefix client run test"
+  }
+}
