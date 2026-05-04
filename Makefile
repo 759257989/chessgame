@@ -1,4 +1,13 @@
-.PHONY: server-dev server-test client-dev client-test client-build test
+.PHONY: help server-dev server-test client-dev client-test client-build test
+
+help:
+	@printf "RBC chess development commands:\n"
+	@printf "  make server-dev    Run FastAPI on 127.0.0.1:8000\n"
+	@printf "  make client-dev    Run the Stage 1 React client\n"
+	@printf "  make server-test   Run backend pytest suite\n"
+	@printf "  make client-test   Run Vitest component tests once\n"
+	@printf "  make client-build  Run TypeScript and Vite build\n"
+	@printf "  make test          Run all local validation checks\n"
 
 server-dev:
 	cd server && .venv/bin/uvicorn app.main:app --reload --host 127.0.0.1 --port 8000

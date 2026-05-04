@@ -4,10 +4,12 @@ import { describe, expect, it } from "vitest";
 import { App } from "./App";
 
 describe("App", () => {
-  it("renders the Stage 0 shell", () => {
+  it("renders the Stage 1 game shell", () => {
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "Reconnaissance Blind Chess" })).toBeInTheDocument();
-    expect(screen.getByText("Local game shell ready.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Chess board")).toBeInTheDocument();
+    expect(screen.getByText("Your turn to sense")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pass" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Resign" })).toBeInTheDocument();
   });
 });
