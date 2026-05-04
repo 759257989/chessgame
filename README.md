@@ -1,6 +1,6 @@
 # Reconnaissance Blind Chess
 
-Local web implementation of Reconnaissance Blind Chess with a React frontend and FastAPI backend. Stage 1 is a static player-view shell: the client renders a sanitized `PlayerView` fixture while the backend exposes starter health and contract endpoints.
+Local web implementation of Reconnaissance Blind Chess with a React frontend and FastAPI backend. Stage 1 is a static player-view shell: the client renders a sanitized `PlayerView` fixture while the backend exposes starter health plus contract models.
 
 ## Development
 
