@@ -1,13 +1,17 @@
 import random
+import time
+from collections.abc import Callable
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-from app.api.schemas import CreateGameRequest
+from app.api.schemas import CreateGameRequest, MoveRequest
 from app.domain.clock import ChessClock
 from app.domain.events import player_event
-from app.domain.player_view import GameEventView, PlayerView, build_initial_player_view
-from app.domain.types import BotAvailability, Color, GamePhase, GameStatus
+from app.domain.player_view import GameEventView, GameResultView, PieceView, PlayerView, build_initial_player_view
+from app.domain.types import BotAvailability, Color, GamePhase, GameStatus, WinReason
+from app.engine.reconchess_engine import ReconchessEngine
+from app.services.turn_service import TurnService
 
 
 class BotSpec(BaseModel):
@@ -46,6 +50,13 @@ class GameRecord(BaseModel):
     human_clock: ChessClock
     bot_clock: ChessClock
     events: list[GameEventView] = Field(default_factory=list)
+    last_sense_area: list[str] = Field(default_factory=list)
+    visible_opponent_pieces: list[PieceView] = Field(default_factory=list)
+    known_empty_squares_from_sense: list[str] = Field(default_factory=list)
+    result: GameResultView | None = None
+    engine: ReconchessEngine = Field(default_factory=ReconchessEngine)
+
+    model_config = {"arbitrary_types_allowed": True}
 
     def add_event(self, event_type: str, message: str) -> None:
         self.events.insert(0, player_event(event_type, message))
@@ -64,8 +75,9 @@ class MemoryGameStore:
 
 
 class GameService:
-    def __init__(self, store: MemoryGameStore) -> None:
+    def __init__(self, store: MemoryGameStore, monotonic_now: Callable[[], float] | None = None) -> None:
         self.store = store
+        self._monotonic_now = monotonic_now or time.monotonic
 
     def create_game(self, request: CreateGameRequest) -> GameRecord:
         bot_spec = self._get_bot_spec(request.bot_id)
@@ -88,6 +100,7 @@ class GameService:
                 increment_seconds=request.timer.increment_seconds,
             ),
         )
+        self._clock_for_color(game, game.turn).start_turn(self._monotonic_now())
         game.add_event(
             "game_started",
             "Game started. Your turn to sense."
@@ -98,15 +111,102 @@ class GameService:
         return game
 
     def view_for_human(self, game: GameRecord) -> PlayerView:
+        monotonic_now = self._monotonic_now()
+        if self._complete_by_timeout_if_flagged(game, monotonic_now):
+            self.store.save(game)
+
         view = build_initial_player_view(
             game_id=game.id,
             human_color=game.human_color,
             bot_name=game.bot_name,
             phase=game.phase,
-            human_seconds_left=game.human_clock.current_seconds_left(monotonic_now=0),
-            bot_seconds_left=game.bot_clock.current_seconds_left(monotonic_now=0),
+            human_seconds_left=game.human_clock.current_seconds_left(monotonic_now=monotonic_now),
+            bot_seconds_left=game.bot_clock.current_seconds_left(monotonic_now=monotonic_now),
         )
-        return view.model_copy(update={"events": game.events, "status": game.status, "turn": game.turn})
+        board = view.board.model_copy(
+            update={
+                "visible_opponent_pieces": game.visible_opponent_pieces,
+                "known_empty_squares_from_sense": game.known_empty_squares_from_sense,
+                "highlighted_sense_area": game.last_sense_area,
+            }
+        )
+        return view.model_copy(
+            update={
+                "board": board,
+                "events": game.events,
+                "status": game.status,
+                "turn": game.turn,
+                "phase": game.phase,
+                "result": game.result,
+            }
+        )
+
+    def sense(self, game_id: str, center: str) -> GameRecord:
+        game, _monotonic_now = self._get_active_game_for_command(game_id)
+        TurnService(turn=game.turn, human_color=game.human_color, phase=game.phase).require_human_sense()
+
+        result = game.engine.sense(center)
+        game.last_sense_area = [square for square, _piece_type, _color in result]
+        game.visible_opponent_pieces = [
+            PieceView(square=square, type=piece_type, color=color)
+            for square, piece_type, color in result
+            if piece_type is not None and color == game.human_color.opposite
+        ]
+        game.known_empty_squares_from_sense = [
+            square for square, piece_type, _color in result if piece_type is None
+        ]
+        game.phase = GamePhase.MOVE
+        game.add_event("sense_result", f"Sensed {center}.")
+        self.store.save(game)
+        return game
+
+    def move(self, game_id: str, request: MoveRequest) -> GameRecord:
+        game, monotonic_now = self._get_active_game_for_command(game_id)
+        TurnService(turn=game.turn, human_color=game.human_color, phase=game.phase).require_human_move()
+
+        promotion = request.promotion or ""
+        _requested, taken, capture_square = game.engine.move(f"{request.source}{request.target}{promotion}")
+        self._clear_sense_result(game)
+        self._clock_for_color(game, game.turn).stop_turn(monotonic_now)
+        game.turn = game.human_color.opposite
+        game.phase = GamePhase.BOT_THINKING
+        self._clock_for_color(game, game.turn).start_turn(monotonic_now)
+
+        if taken is None:
+            game.add_event("illegal_move", "That move did not succeed. Your turn is over.")
+        elif capture_square is not None:
+            game.add_event("capture", f"You captured a piece on {capture_square}.")
+        else:
+            game.add_event("move", f"Move played: {taken}.")
+
+        self.store.save(game)
+        return game
+
+    def pass_turn(self, game_id: str) -> GameRecord:
+        game, monotonic_now = self._get_active_game_for_command(game_id)
+        TurnService(turn=game.turn, human_color=game.human_color, phase=game.phase).require_human_move()
+
+        self._clear_sense_result(game)
+        self._clock_for_color(game, game.turn).stop_turn(monotonic_now)
+        game.turn = game.human_color.opposite
+        game.phase = GamePhase.BOT_THINKING
+        self._clock_for_color(game, game.turn).start_turn(monotonic_now)
+        game.add_event("pass", "You passed.")
+        self.store.save(game)
+        return game
+
+    def resign(self, game_id: str) -> GameRecord:
+        game, _monotonic_now = self._get_active_game_for_command(game_id)
+        game.status = GameStatus.COMPLETE
+        game.phase = GamePhase.GAME_OVER
+        game.result = GameResultView(
+            winner=game.human_color.opposite,
+            reason=WinReason.RESIGN,
+            message="You resigned.",
+        )
+        game.add_event("resign", "You resigned. Game over.")
+        self.store.save(game)
+        return game
 
     def _choose_color(self, requested: str) -> Color:
         if requested == Color.WHITE:
@@ -130,3 +230,39 @@ class GameService:
                 availability=BotAvailability.UNAVAILABLE,
                 unavailable_reason="Unknown bot",
             )
+
+    def _clear_sense_result(self, game: GameRecord) -> None:
+        game.last_sense_area = []
+        game.visible_opponent_pieces = []
+        game.known_empty_squares_from_sense = []
+
+    def _get_active_game_for_command(self, game_id: str) -> tuple[GameRecord, float]:
+        game = self.store.get(game_id)
+        monotonic_now = self._monotonic_now()
+        if self._complete_by_timeout_if_flagged(game, monotonic_now):
+            self.store.save(game)
+        if game.status == GameStatus.COMPLETE:
+            raise ValueError("Game is complete")
+        return game, monotonic_now
+
+    def _clock_for_color(self, game: GameRecord, color: Color) -> ChessClock:
+        return game.human_clock if color == game.human_color else game.bot_clock
+
+    def _complete_by_timeout_if_flagged(self, game: GameRecord, monotonic_now: float) -> bool:
+        if game.status == GameStatus.COMPLETE:
+            return False
+
+        active_clock = self._clock_for_color(game, game.turn)
+        if not active_clock.is_flagged(monotonic_now):
+            return False
+
+        self._clear_sense_result(game)
+        game.status = GameStatus.COMPLETE
+        game.phase = GamePhase.GAME_OVER
+        game.result = GameResultView(
+            winner=game.turn.opposite,
+            reason=WinReason.TIMEOUT,
+            message=f"{game.turn.value.title()} flagged on time.",
+        )
+        game.add_event("timeout", f"{game.turn.value.title()} flagged on time. Game over.")
+        return True
