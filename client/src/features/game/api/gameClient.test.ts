@@ -22,6 +22,7 @@ function apiView(overrides: Record<string, unknown> = {}) {
     clocks: { human_seconds_left: 899, bot_seconds_left: 900 },
     selectable_sense_centers: ["e4"],
     legal_move_uci: ["e2e4"],
+    result: { winner: "black", reason: "resign", message: "You resigned." },
     events: [
       {
         id: "event-1",
@@ -75,6 +76,7 @@ describe("gameClient", () => {
       clocks: { humanSecondsLeft: 899, botSecondsLeft: 900 },
       selectableSenseCenters: ["e4"],
       legalMoveUci: ["e2e4"],
+      result: { winner: "black", reason: "resign", message: "You resigned." },
       events: [{ createdAt: "2026-05-03T00:00:00Z" }]
     });
   });

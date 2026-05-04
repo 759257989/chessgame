@@ -1,6 +1,7 @@
 export type Color = "white" | "black";
 export type GamePhase = "setup" | "sense" | "move" | "bot_thinking" | "game_over";
 export type GameStatus = "active" | "complete";
+export type WinReason = "king_capture" | "timeout" | "resign" | "move_limit";
 
 export interface PieceView {
   square: string;
@@ -35,6 +36,12 @@ export interface GameEventView {
   createdAt: string;
 }
 
+export interface GameResultView {
+  winner: Color | null;
+  reason: WinReason | null;
+  message: string | null;
+}
+
 export interface PlayerView {
   gameId: string;
   status: GameStatus;
@@ -47,4 +54,5 @@ export interface PlayerView {
   selectableSenseCenters: string[];
   legalMoveUci: string[];
   events: GameEventView[];
+  result: GameResultView | null;
 }

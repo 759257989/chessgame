@@ -1,4 +1,4 @@
-import type { Color, GameEventView, PieceView, PlayerView } from "../types";
+import type { Color, GameEventView, GameResultView, PieceView, PlayerView } from "../types";
 
 interface ApiPieceView {
   square: string;
@@ -30,6 +30,7 @@ interface ApiPlayerView {
   };
   selectable_sense_centers: string[];
   legal_move_uci: string[];
+  result: GameResultView | null;
   events: Array<{
     id: string;
     type: string;
@@ -97,7 +98,8 @@ function mapPlayerView(view: ApiPlayerView): PlayerView {
     },
     selectableSenseCenters: view.selectable_sense_centers,
     legalMoveUci: view.legal_move_uci,
-    events: mapEvents(view.events)
+    events: mapEvents(view.events),
+    result: view.result
   };
 }
 

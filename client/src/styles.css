@@ -16,6 +16,103 @@ button {
   font: inherit;
 }
 
+.setup-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+
+.setup-panel {
+  width: min(100%, 460px);
+  display: grid;
+  gap: 24px;
+  padding: 32px;
+  border: 1px solid #e3dfd5;
+  border-radius: 8px;
+  background: #fffdfa;
+  box-shadow: 0 12px 28px rgb(30 23 16 / 10%);
+}
+
+.setup-heading h1 {
+  margin: 0;
+  color: #1f2933;
+  font-size: 32px;
+  line-height: 1.1;
+}
+
+.setup-field {
+  display: grid;
+  gap: 10px;
+}
+
+.setup-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  overflow: hidden;
+  border: 1px solid #0b74ff;
+  border-radius: 8px;
+}
+
+.segmented-control button,
+.setup-start {
+  min-height: 48px;
+  border: 0;
+  background: #fff;
+  color: #0b74ff;
+  cursor: pointer;
+}
+
+.segmented-control button + button {
+  border-left: 1px solid #0b74ff;
+}
+
+.segmented-control button[aria-pressed="true"] {
+  background: #0b74ff;
+  color: #fff;
+}
+
+.setup-field select {
+  min-height: 48px;
+  border: 1px solid #c9d1d9;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #fff;
+  color: #1f2933;
+  font: inherit;
+}
+
+.setup-error {
+  border: 1px solid #f4b4a6;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fff4f1;
+  color: #9f2f1e;
+}
+
+.setup-start {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px;
+  background: #0b74ff;
+  color: #fff;
+  font-weight: 700;
+}
+
+.setup-start:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .game-page {
   width: min(100%, 1120px);
   min-height: 100vh;
