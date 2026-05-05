@@ -47,7 +47,7 @@ def test_command_for_missing_game_returns_not_found():
     assert response.status_code == 404
 
 
-def test_pass_after_sense_advances_to_bot_thinking_and_clears_sense_window():
+def test_pass_after_sense_runs_bot_and_clears_sense_window():
     client = TestClient(app)
     game_id = _new_game(client)
     client.post(f"/api/games/{game_id}/sense", json={"center": "e2"})
@@ -56,9 +56,13 @@ def test_pass_after_sense_advances_to_bot_thinking_and_clears_sense_window():
 
     assert response.status_code == 200
     view = response.json()["view"]
-    assert view["phase"] == "bot_thinking"
-    assert view["turn"] == "black"
+    assert view["phase"] == "sense"
+    assert view["turn"] == "white"
     assert view["board"]["highlighted_sense_area"] == []
+    assert view["board"]["visible_opponent_pieces"] == []
+    messages = [event["message"] for event in view["events"]]
+    assert "Waiting for opponent to act." in messages
+    assert "Your turn to sense." in messages
 
 
 def test_resign_completes_game():

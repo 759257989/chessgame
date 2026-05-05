@@ -21,6 +21,8 @@ class BotService:
         )
         bot_move = bot.choose_move(game.engine.move_actions(), seconds_left)
         _requested, taken, capture_square = game.engine.move(bot_move)
+        if taken is None:
+            game.engine.pass_turn()
 
         game.turn = game.human_color
         game.phase = GamePhase.SENSE

@@ -6,7 +6,7 @@ from app.domain.types import BotAvailability
 
 class TimerRequest(BaseModel):
     initial_seconds: int = Field(default=900, ge=1)
-    increment_seconds: int = Field(default=0, ge=0)
+    increment_seconds: int = Field(default=5, ge=0)
 
 
 class CreateGameRequest(BaseModel):

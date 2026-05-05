@@ -52,6 +52,7 @@ class PlayerView(BaseModel):
     board: VisibleBoard
     clocks: ClockView
     selectable_sense_centers: list[str] = Field(default_factory=list)
+    move_targets_by_source: dict[str, list[str]] = Field(default_factory=dict)
     legal_move_uci: list[str] = Field(default_factory=list)
     events: list[GameEventView] = Field(default_factory=list)
     result: GameResultView | None = None

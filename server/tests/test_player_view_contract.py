@@ -1,3 +1,5 @@
+import chess
+
 from app.domain.player_view import VisibleBoard, build_initial_player_view
 from app.domain.types import Color, GamePhase
 
@@ -60,3 +62,22 @@ def test_visible_board_defaults_do_not_leak_opponent_state():
     assert board.own_pieces == []
     assert board.visible_opponent_pieces == []
     assert board.known_empty_squares_from_sense == []
+
+
+def test_player_view_exposes_move_targets_by_source_without_hidden_blocker_leak():
+    from app.api.schemas import CreateGameRequest
+    from app.services.game_service import GameService, MemoryGameStore
+
+    service = GameService(MemoryGameStore())
+    game = service.create_game(CreateGameRequest(human_color="white", bot_id="random"))
+    game.engine.board.clear_board()
+    game.engine.board.set_piece_at(chess.A1, chess.Piece(chess.ROOK, chess.WHITE))
+    game.engine.board.set_piece_at(chess.A4, chess.Piece(chess.BISHOP, chess.BLACK))
+    game.engine.board.turn = chess.WHITE
+    game.phase = GamePhase.MOVE
+    service.store.save(game)
+
+    view = service.view_for_human(game)
+
+    assert view.move_targets_by_source["a1"] == ["b1", "c1", "d1", "e1", "f1", "g1", "h1", "a2", "a3", "a4", "a5", "a6", "a7", "a8"]
+    assert "a1a8" in view.legal_move_uci

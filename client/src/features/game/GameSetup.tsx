@@ -1,4 +1,5 @@
-import { Bot, Play } from "lucide-react";
+import Bot from "lucide-react/dist/esm/icons/bot.js";
+import Play from "lucide-react/dist/esm/icons/play.js";
 import { useState } from "react";
 
 import type { CreateGameInput } from "./api/gameClient";
@@ -10,6 +11,10 @@ interface GameSetupProps {
 }
 
 const colorOptions: CreateGameInput["humanColor"][] = ["random", "white", "black"];
+const botOptions = [
+  { id: "random", label: "random" },
+  { id: "attacker", label: "attacker" }
+];
 
 export function GameSetup({ error, loading, onStart }: GameSetupProps) {
   const [humanColor, setHumanColor] = useState<CreateGameInput["humanColor"]>("random");
@@ -24,7 +29,7 @@ export function GameSetup({ error, loading, onStart }: GameSetupProps) {
 
         <div className="setup-field">
           <span className="setup-label">Color</span>
-          <div className="segmented-control" aria-label="Choose color">
+          <div className="segmented-control" role="group" aria-label="Choose color">
             {colorOptions.map((color) => (
               <button
                 key={color}
@@ -44,7 +49,11 @@ export function GameSetup({ error, loading, onStart }: GameSetupProps) {
             Bot
           </span>
           <select value={botId} onChange={(event) => setBotId(event.target.value)}>
-            <option value="random">random</option>
+            {botOptions.map((bot) => (
+              <option key={bot.id} value={bot.id}>
+                {bot.label}
+              </option>
+            ))}
           </select>
         </label>
 

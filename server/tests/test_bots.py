@@ -1,3 +1,4 @@
+from app.bots.attacker_bot import AttackerBot
 from app.bots.random_bot import RandomBot
 from app.bots.registry import get_bot_spec, list_bot_specs
 from app.domain.types import BotAvailability
@@ -7,13 +8,16 @@ def test_registry_lists_random_available():
     bots = list_bot_specs()
 
     random_bot = next(bot for bot in bots if bot.id == "random")
+    attacker_bot = next(bot for bot in bots if bot.id == "attacker")
 
     assert random_bot.availability == BotAvailability.AVAILABLE
     assert random_bot.factory is RandomBot
+    assert attacker_bot.availability == BotAvailability.AVAILABLE
+    assert attacker_bot.factory is AttackerBot
 
 
 def test_registry_marks_advanced_bots_unavailable_initially():
-    unavailable_ids = {"attacker", "trout", "oracle", "marmot"}
+    unavailable_ids = {"trout", "oracle", "marmot"}
 
     specs = {bot.id: bot for bot in list_bot_specs()}
 

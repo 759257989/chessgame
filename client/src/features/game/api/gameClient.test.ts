@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createGame, move, passTurn, resign, sense } from "./gameClient";
+import { createGame, getGame, move, passTurn, resign, sense } from "./gameClient";
 
 function apiView(overrides: Record<string, unknown> = {}) {
   return {
@@ -22,6 +22,7 @@ function apiView(overrides: Record<string, unknown> = {}) {
     clocks: { human_seconds_left: 899, bot_seconds_left: 900 },
     selectable_sense_centers: ["e4"],
     legal_move_uci: ["e2e4"],
+    move_targets_by_source: { e2: ["e3", "e4"] },
     result: { winner: "black", reason: "resign", message: "You resigned." },
     events: [
       {
@@ -59,7 +60,7 @@ describe("gameClient", () => {
         body: JSON.stringify({
           human_color: "white",
           bot_id: "random",
-          timer: { initial_seconds: 900, increment_seconds: 0 }
+          timer: { initial_seconds: 900, increment_seconds: 5 }
         })
       })
     );
@@ -76,6 +77,7 @@ describe("gameClient", () => {
       clocks: { humanSecondsLeft: 899, botSecondsLeft: 900 },
       selectableSenseCenters: ["e4"],
       legalMoveUci: ["e2e4"],
+      moveTargetsBySource: { e2: ["e3", "e4"] },
       result: { winner: "black", reason: "resign", message: "You resigned." },
       events: [{ createdAt: "2026-05-03T00:00:00Z" }]
     });
@@ -88,6 +90,7 @@ describe("gameClient", () => {
     await move("game-1", "e2", "e4", null);
     await passTurn("game-1");
     await resign("game-1");
+    await getGame("game-1");
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
@@ -111,6 +114,11 @@ describe("gameClient", () => {
       4,
       "/api/games/game-1/resign",
       expect.objectContaining({ method: "POST" })
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      "/api/games/game-1",
+      expect.objectContaining({ method: "GET" })
     );
   });
 

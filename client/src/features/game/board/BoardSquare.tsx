@@ -1,3 +1,4 @@
+import type { DragEvent } from "react";
 import type { PieceView } from "../types";
 import { Piece } from "./Piece";
 import { SenseOverlay } from "./SenseOverlay";
@@ -7,10 +8,27 @@ interface BoardSquareProps {
   piece?: PieceView;
   tone: "light" | "dark";
   highlighted: boolean;
+  moveTarget?: boolean;
   knownEmpty: boolean;
+  selectedSource?: boolean;
+  onClick?: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+  onDragOver?: (event: DragEvent<HTMLButtonElement>) => void;
+  onDrop?: () => void;
+  draggable?: boolean;
 }
 
-function describeSquare(square: string, piece: PieceView | undefined, highlighted: boolean, knownEmpty: boolean) {
+function describeSquare(
+  square: string,
+  piece: PieceView | undefined,
+  highlighted: boolean,
+  moveTarget: boolean,
+  knownEmpty: boolean,
+  selectedSource: boolean
+) {
   const parts = [square];
 
   if (piece) {
@@ -25,19 +43,53 @@ function describeSquare(square: string, piece: PieceView | undefined, highlighte
     parts.push("in highlighted sense area");
   }
 
+  if (moveTarget) {
+    parts.push("available move target");
+  }
+
+  if (selectedSource) {
+    parts.push("selected source");
+  }
+
   return parts.join(", ");
 }
 
-export function BoardSquare({ square, piece, tone, highlighted, knownEmpty }: BoardSquareProps) {
+export function BoardSquare({
+  square,
+  piece,
+  tone,
+  highlighted,
+  moveTarget = false,
+  knownEmpty,
+  selectedSource = false,
+  onClick,
+  onMouseEnter,
+  onMouseLeave,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
+  draggable = false
+}: BoardSquareProps) {
   return (
     <button
       className={[
         "board-square",
         `board-square-${tone}`,
         highlighted ? "board-square-highlighted" : "",
-        knownEmpty ? "board-square-known-empty" : ""
+        moveTarget ? "board-square-move-target" : "",
+        knownEmpty ? "board-square-known-empty" : "",
+        selectedSource ? "board-square-selected-source" : ""
       ].join(" ")}
-      aria-label={describeSquare(square, piece, highlighted, knownEmpty)}
+      aria-label={describeSquare(square, piece, highlighted, moveTarget, knownEmpty, selectedSource)}
+      onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      draggable={draggable}
       type="button"
     >
       <SenseOverlay highlighted={highlighted} knownEmpty={knownEmpty} />

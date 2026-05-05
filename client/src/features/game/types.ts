@@ -53,6 +53,7 @@ export interface PlayerView {
   clocks: ClockView;
   selectableSenseCenters: string[];
   legalMoveUci: string[];
+  moveTargetsBySource: Record<string, string[]>;
   events: GameEventView[];
   result: GameResultView | null;
 }

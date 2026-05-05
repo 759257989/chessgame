@@ -1,8 +1,10 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from app.bots.attacker_bot import AttackerBot
 from app.bots.base import BotPlayer
 from app.bots.random_bot import RandomBot
+from app.bots.stockfish_service import StockfishService
 from app.domain.types import BotAvailability
 
 
@@ -28,8 +30,8 @@ _REGISTRY: dict[str, BotSpec] = {
         id="attacker",
         name="attacker",
         description="Senses randomly and tries a simple attacking plan.",
-        availability=BotAvailability.UNAVAILABLE,
-        unavailable_reason="Scheduled for Stage 7",
+        availability=BotAvailability.AVAILABLE,
+        factory=AttackerBot,
     ),
     "trout": BotSpec(
         id="trout",
@@ -53,6 +55,16 @@ _REGISTRY: dict[str, BotSpec] = {
         unavailable_reason="Not bundled in the local MVP",
     ),
 }
+
+_STOCKFISH = StockfishService.from_environment()
+if _STOCKFISH.is_configured:
+    _REGISTRY["trout"] = BotSpec(
+        id="trout",
+        name="trout",
+        description="Tracks a naive board state and uses Stockfish.",
+        availability=BotAvailability.UNAVAILABLE,
+        unavailable_reason="Stockfish is configured, but TroutBot is not implemented in this MVP yet.",
+    )
 
 
 def list_bot_specs() -> list[BotSpec]:

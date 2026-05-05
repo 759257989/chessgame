@@ -36,6 +36,7 @@ export const staticPlayerView: PlayerView = {
   clocks: { humanSecondsLeft: 900, botSecondsLeft: 900 },
   selectableSenseCenters: [],
   legalMoveUci: [],
+  moveTargetsBySource: {},
   result: null,
   events: [
     {

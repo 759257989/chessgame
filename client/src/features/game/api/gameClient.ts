@@ -30,6 +30,7 @@ interface ApiPlayerView {
   };
   selectable_sense_centers: string[];
   legal_move_uci: string[];
+  move_targets_by_source?: Record<string, string[]>;
   result: GameResultView | null;
   events: Array<{
     id: string;
@@ -98,6 +99,7 @@ function mapPlayerView(view: ApiPlayerView): PlayerView {
     },
     selectableSenseCenters: view.selectable_sense_centers,
     legalMoveUci: view.legal_move_uci,
+    moveTargetsBySource: view.move_targets_by_source ?? {},
     events: mapEvents(view.events),
     result: view.result
   };
@@ -114,9 +116,13 @@ export function createGame(input: CreateGameInput): Promise<GameCommandResult> {
     body: JSON.stringify({
       human_color: input.humanColor,
       bot_id: input.botId,
-      timer: { initial_seconds: 900, increment_seconds: 0 }
+      timer: { initial_seconds: 900, increment_seconds: 5 }
     })
   });
+}
+
+export function getGame(gameId: string): Promise<GameCommandResult> {
+  return command(`/api/games/${gameId}`, { method: "GET" });
 }
 
 export function sense(gameId: string, center: string): Promise<GameCommandResult> {
