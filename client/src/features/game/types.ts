@@ -2,6 +2,20 @@ export type Color = "white" | "black";
 export type GamePhase = "setup" | "sense" | "move" | "bot_thinking" | "game_over";
 export type GameStatus = "active" | "complete";
 export type WinReason = "king_capture" | "timeout" | "resign" | "move_limit";
+export type BotAvailability = "available" | "unavailable";
+
+export interface TimerConfig {
+  initialSeconds: number;
+  incrementSeconds: number;
+}
+
+export interface BotCatalogItem {
+  id: string;
+  name: string;
+  description: string;
+  availability: BotAvailability;
+  unavailableReason: string | null;
+}
 
 export interface PieceView {
   square: string;

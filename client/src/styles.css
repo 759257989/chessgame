@@ -61,6 +61,10 @@ button {
   border-radius: 8px;
 }
 
+.timer-control {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .segmented-control button,
 .setup-start {
   min-height: 48px;
@@ -87,6 +91,17 @@ button {
   background: #fff;
   color: #1f2933;
   font: inherit;
+}
+
+.setup-field select:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.setup-help {
+  color: #687380;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .setup-error {

@@ -8,7 +8,9 @@ test("repeat game starts a fresh game with the same setup during play and after 
   await page.goto("/");
 
   await page.getByRole("button", { name: "black" }).click();
+  await expect(page.getByLabel("Bot")).toBeEnabled();
   await page.getByLabel("Bot").selectOption("attacker");
+  await page.getByRole("button", { name: "15:00 strict" }).click();
 
   const firstCreate = page.waitForResponse(
     (response) => isCreateGameResponse(response.url()) && response.request().method() === "POST"
@@ -24,6 +26,7 @@ test("repeat game starts a fresh game with the same setup during play and after 
   const repeatDuringGameBody = JSON.parse((await repeatDuringGame).request().postData() ?? "{}");
 
   expect(repeatDuringGameBody).toEqual(firstRequestBody);
+  expect(repeatDuringGameBody.timer).toEqual({ initial_seconds: 900, increment_seconds: 0 });
   await expect(page.locator(".phase-message")).toHaveText("Your turn to sense");
 
   await page.getByRole("button", { name: "Resign" }).click();

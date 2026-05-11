@@ -1,8 +1,9 @@
-import { useReducer, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 
 import {
   createGame,
   getGame,
+  listBots,
   move,
   passTurn,
   resign,
@@ -12,11 +13,62 @@ import {
 import { GamePage } from "../features/game/GamePage";
 import { GameSetup } from "../features/game/GameSetup";
 import { gameReducer, initialGameState } from "../features/game/state/gameStore";
-import type { PlayerView } from "../features/game/types";
+import type { BotCatalogItem, PlayerView } from "../features/game/types";
+
+const fallbackBots: BotCatalogItem[] = [
+  {
+    id: "random",
+    name: "random",
+    description: "Senses and moves randomly.",
+    availability: "available",
+    unavailableReason: null
+  },
+  {
+    id: "attacker",
+    name: "attacker",
+    description: "Senses randomly and tries a simple attacking plan.",
+    availability: "available",
+    unavailableReason: null
+  }
+];
 
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, initialGameState);
   const [lastSetup, setLastSetup] = useState<CreateGameInput | null>(null);
+  const [bots, setBots] = useState<BotCatalogItem[]>(fallbackBots);
+  const [botsLoading, setBotsLoading] = useState(true);
+  const [botLoadError, setBotLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadBots() {
+      setBotsLoading(true);
+
+      try {
+        const botCatalog = await listBots();
+        if (!ignore) {
+          setBots(botCatalog);
+          setBotLoadError(null);
+        }
+      } catch {
+        if (!ignore) {
+          setBots(fallbackBots);
+          setBotLoadError("Could not load bot catalog. Using local defaults.");
+        }
+      } finally {
+        if (!ignore) {
+          setBotsLoading(false);
+        }
+      }
+    }
+
+    void loadBots();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   async function handleStart(input: CreateGameInput) {
     await runCommand(() => createGame(input), "Could not create game", () => setLastSetup(input));
@@ -140,7 +192,15 @@ export function App() {
   }
 
   if (!state.view) {
-    return <GameSetup error={state.error} loading={state.loading} onStart={handleStart} />;
+    return (
+      <GameSetup
+        error={state.error ?? botLoadError}
+        loading={state.loading}
+        bots={bots}
+        botsLoading={botsLoading}
+        onStart={handleStart}
+      />
+    );
   }
 
   return (

@@ -52,22 +52,72 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function apiBots() {
+  return [
+    {
+      id: "random",
+      name: "random",
+      description: "Senses and moves randomly.",
+      availability: "available",
+      unavailable_reason: null
+    },
+    {
+      id: "attacker",
+      name: "attacker",
+      description: "Tries a simple attacking plan.",
+      availability: "available",
+      unavailable_reason: null
+    },
+    {
+      id: "oracle",
+      name: "Oracle",
+      description: "Tracks possible board states.",
+      availability: "unavailable",
+      unavailable_reason: "Not bundled in the local MVP"
+    }
+  ];
+}
+
+function mockApi(responders: Record<string, unknown | (() => unknown)>) {
+  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const path = String(input);
+    const response = responders[path] ?? { view: apiView() };
+    const body = typeof response === "function" ? response() : response;
+
+    return {
+      ok: true,
+      json: async () => body
+    } as Response;
+  });
+}
+
+function okResponse(body: unknown): Response {
+  return {
+    ok: true,
+    json: async () => body
+  } as Response;
+}
+
 describe("App", () => {
-  it("renders setup controls before a game starts", () => {
+  it("loads setup controls and unavailable bot reasons before a game starts", async () => {
+    mockApi({ "/api/bots": apiBots() });
+
     render(<App />);
 
     expect(screen.getByRole("heading", { name: "Reconnaissance Blind Chess" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "random" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("Bot")).toHaveValue("random");
+    expect(await screen.findByRole("option", { name: /Oracle/ })).toBeDisabled();
+    expect(screen.getByRole("option", { name: /Not bundled in the local MVP/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Start" })).toBeInTheDocument();
   });
 
   it("creates a game and renders the returned player view", async () => {
     const user = userEvent.setup();
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
-      ok: true,
-      json: async () => ({ view: apiView() })
-    } as Response);
+    const fetchMock = mockApi({
+      "/api/bots": apiBots(),
+      "/api/games": { view: apiView() }
+    });
 
     render(<App />);
     await user.click(screen.getByRole("button", { name: "white" }));
@@ -90,46 +140,42 @@ describe("App", () => {
 
   it("repeats a game with the same setup from an active game", async () => {
     const user = userEvent.setup();
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce({
+    let createCount = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const path = String(input);
+
+      if (path === "/api/bots") {
+        return {
+          ok: true,
+          json: async () => apiBots()
+        } as Response;
+      }
+
+      createCount += 1;
+      return {
         ok: true,
         json: async () => ({
           view: apiView({
-            game_id: "game-1",
+            game_id: `game-${createCount}`,
             opponent: { name: "attacker", color: "white" },
             events: [
               {
-                id: "event-1",
+                id: `event-${createCount}`,
                 type: "game_started",
-                message: "First game started.",
-                created_at: "2026-05-03T00:00:00Z"
+                message: createCount === 1 ? "First game started." : "Repeated game started.",
+                created_at: `2026-05-03T00:00:0${createCount}Z`
               }
             ]
           })
         })
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          view: apiView({
-            game_id: "game-2",
-            opponent: { name: "attacker", color: "white" },
-            events: [
-              {
-                id: "event-2",
-                type: "game_started",
-                message: "Repeated game started.",
-                created_at: "2026-05-03T00:00:01Z"
-              }
-            ]
-          })
-        })
-      } as Response);
+      } as Response;
+    });
 
     render(<App />);
+    await screen.findByRole("option", { name: "attacker" });
     await user.click(screen.getByRole("button", { name: "black" }));
     await user.selectOptions(screen.getByLabelText("Bot"), "attacker");
+    await user.click(screen.getByRole("button", { name: "15:00 strict" }));
     await user.click(screen.getByRole("button", { name: "Start" }));
 
     expect(await screen.findByText("First game started.")).toBeInTheDocument();
@@ -144,23 +190,29 @@ describe("App", () => {
       {
         human_color: "black",
         bot_id: "attacker",
-        timer: { initial_seconds: 900, increment_seconds: 5 }
+        timer: { initial_seconds: 900, increment_seconds: 0 }
       },
       {
         human_color: "black",
         bot_id: "attacker",
-        timer: { initial_seconds: 900, increment_seconds: 5 }
+        timer: { initial_seconds: 900, increment_seconds: 0 }
       }
     ]);
   });
 
   it("shows backend errors on the setup screen", async () => {
     const user = userEvent.setup();
-    vi.spyOn(globalThis, "fetch").mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: async () => ({ detail: "Bot oracle is not available" })
-    } as Response);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (String(input) === "/api/bots") {
+        return okResponse(apiBots());
+      }
+
+      return {
+        ok: false,
+        status: 400,
+        json: async () => ({ detail: "Bot oracle is not available" })
+      } as Response;
+    });
 
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Start" }));
@@ -170,15 +222,14 @@ describe("App", () => {
   });
 
   it("senses from a board click and renders the returned move phase", async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ view: apiView() })
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const path = String(input);
+      if (path === "/api/bots") {
+        return okResponse(apiBots());
+      }
+
+      if (path === "/api/games/game-1/sense") {
+        return okResponse({
           view: apiView({
             phase: "move",
             board: apiBoard({
@@ -186,8 +237,11 @@ describe("App", () => {
               known_empty_squares_from_sense: ["d3", "e3"]
             })
           })
-        })
-      } as Response);
+        });
+      }
+
+      return okResponse({ view: apiView() });
+    });
 
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
@@ -204,15 +258,14 @@ describe("App", () => {
   });
 
   it("moves after selecting a source and target square", async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ view: apiView({ phase: "move", move_targets_by_source: { e2: ["e4"] } }) })
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const path = String(input);
+      if (path === "/api/bots") {
+        return okResponse(apiBots());
+      }
+
+      if (path === "/api/games/game-1/move") {
+        return okResponse({
           view: apiView({
             phase: "sense",
             turn: "white",
@@ -223,8 +276,11 @@ describe("App", () => {
               ]
             })
           })
-        })
-      } as Response);
+        });
+      }
+
+      return okResponse({ view: apiView({ phase: "move", move_targets_by_source: { e2: ["e4"] } }) });
+    });
 
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
@@ -243,41 +299,43 @@ describe("App", () => {
   });
 
   it("does not submit a move when the selected target is not available", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
-      ok: true,
-      json: async () => ({ view: apiView({ phase: "move", move_targets_by_source: { e2: ["e3"] } }) })
-    } as Response);
+    const fetchMock = mockApi({
+      "/api/bots": apiBots(),
+      "/api/games": { view: apiView({ phase: "move", move_targets_by_source: { e2: ["e3"] } }) }
+    });
 
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     fireEvent.click(await screen.findByRole("button", { name: "e2, white pawn" }));
     fireEvent.click(screen.getByRole("button", { name: "e4, empty" }));
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: "e2, white pawn, selected source" })).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([path]) => String(path) === "/api/games/game-1/move")).toBe(false);
+    expect(screen.getByRole("button", { name: "e2, white pawn" })).toBeInTheDocument();
   });
 
   it("passes and resigns through sidebar controls", async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ view: apiView({ phase: "move" }) })
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ view: apiView({ phase: "sense", turn: "white" }) })
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const path = String(input);
+      if (path === "/api/bots") {
+        return okResponse(apiBots());
+      }
+
+      if (path === "/api/games/game-1/pass") {
+        return okResponse({ view: apiView({ phase: "sense", turn: "white" }) });
+      }
+
+      if (path === "/api/games/game-1/resign") {
+        return okResponse({
           view: apiView({
             status: "complete",
             phase: "game_over",
             result: { winner: "black", reason: "resign", message: "You resigned." }
           })
-        })
-      } as Response);
+        });
+      }
+
+      return okResponse({ view: apiView({ phase: "move" }) });
+    });
 
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
@@ -299,30 +357,32 @@ describe("App", () => {
 
   it("refreshes and renders the authoritative result when the active clock expires", async () => {
     vi.useFakeTimers();
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          view: apiView({
-            phase: "move",
-            turn: "white",
-            clocks: { human_seconds_left: 1, bot_seconds_left: 900 },
-            move_targets_by_source: { e2: ["e3"] }
-          })
-        })
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const path = String(input);
+      if (path === "/api/bots") {
+        return okResponse(apiBots());
+      }
+
+      if (path === "/api/games/game-1") {
+        return okResponse({
           view: apiView({
             status: "complete",
             phase: "game_over",
             clocks: { human_seconds_left: 0, bot_seconds_left: 900 },
             result: { winner: "black", reason: "timeout", message: "White flagged on time." }
           })
+        });
+      }
+
+      return okResponse({
+        view: apiView({
+          phase: "move",
+          turn: "white",
+          clocks: { human_seconds_left: 1, bot_seconds_left: 900 },
+          move_targets_by_source: { e2: ["e3"] }
         })
-      } as Response);
+      });
+    });
 
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Start" }));

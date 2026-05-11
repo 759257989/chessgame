@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createGame, getGame, move, passTurn, resign, sense } from "./gameClient";
+import { createGame, getGame, listBots, move, passTurn, resign, sense } from "./gameClient";
 
 function apiView(overrides: Record<string, unknown> = {}) {
   return {
@@ -51,7 +51,11 @@ describe("gameClient", () => {
   it("creates a game with snake_case payload and maps PlayerView to camelCase", async () => {
     const fetchMock = mockGameResponse();
 
-    const result = await createGame({ humanColor: "white", botId: "random" });
+    const result = await createGame({
+      humanColor: "white",
+      botId: "random",
+      timer: { initialSeconds: 900, incrementSeconds: 0 }
+    });
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/games",
@@ -60,7 +64,7 @@ describe("gameClient", () => {
         body: JSON.stringify({
           human_color: "white",
           bot_id: "random",
-          timer: { initial_seconds: 900, increment_seconds: 5 }
+          timer: { initial_seconds: 900, increment_seconds: 0 }
         })
       })
     );
@@ -81,6 +85,51 @@ describe("gameClient", () => {
       result: { winner: "black", reason: "resign", message: "You resigned." },
       events: [{ createdAt: "2026-05-03T00:00:00Z" }]
     });
+  });
+
+  it("lists bots and maps unavailable reasons to camelCase", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => [
+        {
+          id: "random",
+          name: "random",
+          description: "Senses and moves randomly.",
+          availability: "available",
+          unavailable_reason: null
+        },
+        {
+          id: "oracle",
+          name: "Oracle",
+          description: "Tracks possible board states.",
+          availability: "unavailable",
+          unavailable_reason: "Not bundled in the local MVP"
+        }
+      ]
+    } as Response);
+
+    const bots = await listBots();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/bots",
+      expect.objectContaining({ method: "GET" })
+    );
+    expect(bots).toEqual([
+      {
+        id: "random",
+        name: "random",
+        description: "Senses and moves randomly.",
+        availability: "available",
+        unavailableReason: null
+      },
+      {
+        id: "oracle",
+        name: "Oracle",
+        description: "Tracks possible board states.",
+        availability: "unavailable",
+        unavailableReason: "Not bundled in the local MVP"
+      }
+    ]);
   });
 
   it("posts command payloads to the matching game endpoints", async () => {

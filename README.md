@@ -7,12 +7,13 @@ Persistence is intentionally not included right now. Restarting the backend clea
 ## Features
 
 - Human color selection: random, white, or black.
-- Bot selection: `random` and `attacker` are playable.
-- Future bot slots remain visible through the backend registry as unavailable until their dependencies are implemented.
+- Bot selection loads from the backend registry: `random` and `attacker` are playable.
+- Future bot slots remain visible as disabled options with clear unavailable reasons.
 - RBC turn flow: sense, move or pass, bot response, then the next human sense turn.
 - Hidden opponent pieces are only revealed inside the active sense result.
-- 15:00 clocks with 5-second increment, timeout finalization, resign, king-capture wins, and automatic RBC 50-move draw.
-- Repeat game anytime from the sidebar.
+- Timer modes: 15:00 strict, or 15:00 with 5-second increment.
+- Timeout finalization, resign, king-capture wins, and automatic RBC 50-move draw.
+- Repeat game anytime from the sidebar while preserving color, bot, and timer setup.
 
 ## Development
 

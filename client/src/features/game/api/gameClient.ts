@@ -1,4 +1,12 @@
-import type { Color, GameEventView, GameResultView, PieceView, PlayerView } from "../types";
+import type {
+  BotCatalogItem,
+  Color,
+  GameEventView,
+  GameResultView,
+  PieceView,
+  PlayerView,
+  TimerConfig
+} from "../types";
 
 interface ApiPieceView {
   square: string;
@@ -44,13 +52,24 @@ interface ApiGameResponse {
   view: ApiPlayerView;
 }
 
+interface ApiBotResponse {
+  id: string;
+  name: string;
+  description: string;
+  availability: BotCatalogItem["availability"];
+  unavailable_reason: string | null;
+}
+
 export interface GameCommandResult {
   view: PlayerView;
 }
 
+export const DEFAULT_TIMER: TimerConfig = { initialSeconds: 900, incrementSeconds: 5 };
+
 export interface CreateGameInput {
   humanColor: "random" | Color;
   botId: string;
+  timer?: TimerConfig;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -110,13 +129,29 @@ async function command(path: string, init?: RequestInit): Promise<GameCommandRes
   return { view: mapPlayerView(response.view) };
 }
 
+export async function listBots(): Promise<BotCatalogItem[]> {
+  const bots = await request<ApiBotResponse[]>("/api/bots", { method: "GET" });
+  return bots.map((bot) => ({
+    id: bot.id,
+    name: bot.name,
+    description: bot.description,
+    availability: bot.availability,
+    unavailableReason: bot.unavailable_reason
+  }));
+}
+
 export function createGame(input: CreateGameInput): Promise<GameCommandResult> {
+  const timer = input.timer ?? DEFAULT_TIMER;
+
   return command("/api/games", {
     method: "POST",
     body: JSON.stringify({
       human_color: input.humanColor,
       bot_id: input.botId,
-      timer: { initial_seconds: 900, increment_seconds: 5 }
+      timer: {
+        initial_seconds: timer.initialSeconds,
+        increment_seconds: timer.incrementSeconds
+      }
     })
   });
 }
