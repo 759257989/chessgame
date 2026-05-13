@@ -1,6 +1,7 @@
 from app.bots.attacker_bot import AttackerBot
 from app.bots.random_bot import RandomBot
 from app.bots.registry import get_bot_spec, list_bot_specs
+from app.bots.trout_bot import TroutBot
 from app.domain.types import BotAvailability
 
 
@@ -16,7 +17,8 @@ def test_registry_lists_random_available():
     assert attacker_bot.factory is AttackerBot
 
 
-def test_registry_marks_advanced_bots_unavailable_initially():
+def test_registry_marks_advanced_bots_unavailable_initially(monkeypatch):
+    monkeypatch.delenv("STOCKFISH_PATH", raising=False)
     unavailable_ids = {"trout", "oracle", "marmot"}
 
     specs = {bot.id: bot for bot in list_bot_specs()}
@@ -27,6 +29,19 @@ def test_registry_marks_advanced_bots_unavailable_initially():
         assert specs[bot_id].factory is None
         assert specs[bot_id].unavailable_reason
     assert get_bot_spec("oracle").unavailable_reason == "Not bundled in the local MVP"
+
+
+def test_registry_enables_trout_when_stockfish_binary_is_executable(monkeypatch, tmp_path):
+    binary = tmp_path / "stockfish"
+    binary.write_text("#!/bin/sh\nexit 0\n")
+    binary.chmod(0o700)
+    monkeypatch.setenv("STOCKFISH_PATH", str(binary))
+
+    trout = get_bot_spec("trout")
+
+    assert trout.availability == BotAvailability.AVAILABLE
+    assert trout.factory is not None
+    assert isinstance(trout.factory(), TroutBot)
 
 
 def test_random_bot_returns_none_when_no_actions():

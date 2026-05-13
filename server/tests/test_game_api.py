@@ -3,6 +3,31 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
+def _fake_stockfish_binary(tmp_path, move: str = "e2e4"):
+    binary = tmp_path / "fake-stockfish"
+    binary.write_text(
+        "\n".join(
+            [
+                "#!/usr/bin/env python3",
+                "import sys",
+                "for raw_line in sys.stdin:",
+                "    line = raw_line.strip()",
+                "    if line == 'uci':",
+                "        print('uciok')",
+                "    elif line == 'isready':",
+                "        print('readyok')",
+                "    elif line.startswith('go '):",
+                f"        print('bestmove {move}')",
+                "    elif line == 'quit':",
+                "        break",
+                "    sys.stdout.flush()",
+            ]
+        )
+    )
+    binary.chmod(0o700)
+    return binary
+
+
 def _client() -> TestClient:
     return TestClient(app)
 
@@ -57,6 +82,23 @@ def test_list_bots_exposes_random_and_unavailable_models():
     assert bots["attacker"]["availability"] == "available"
     assert bots["oracle"]["availability"] == "unavailable"
     assert bots["oracle"]["unavailable_reason"] == "Not bundled in the local MVP"
+
+
+def test_trout_is_playable_when_stockfish_is_configured(monkeypatch, tmp_path):
+    monkeypatch.setenv("STOCKFISH_PATH", str(_fake_stockfish_binary(tmp_path)))
+    client = _client()
+
+    bots_response = client.get("/api/bots")
+    game_response = client.post("/api/games", json={"human_color": "black", "bot_id": "trout"})
+
+    bots = {bot["id"]: bot for bot in bots_response.json()}
+    assert bots_response.status_code == 200
+    assert bots["trout"]["availability"] == "available"
+    assert game_response.status_code == 200
+    view = game_response.json()["view"]
+    assert view["opponent"]["name"] == "trout"
+    assert view["you"]["color"] == "black"
+    assert view["phase"] == "sense"
 
 
 def test_create_game_accepts_attacker_bot():

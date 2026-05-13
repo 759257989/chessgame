@@ -25,14 +25,14 @@ Playable bots:
 
 - `random`: senses and moves randomly.
 - `attacker`: senses randomly and follows a simple attacking move preference before falling back to a random move.
+- `trout`: tracks a naive single board and asks Stockfish for moves when `STOCKFISH_PATH` points to an executable Stockfish binary.
 
 Unavailable placeholders:
 
-- `trout`
 - `Oracle`
 - `Marmot`
 
-`STOCKFISH_PATH` is supported as configuration scaffolding for future Stockfish-backed bots, but the current MVP does not ship a trout/oracle/marmot implementation.
+If `trout` is unavailable, check that `STOCKFISH_PATH` is set in the backend process environment and points to an executable file.
 
 ## Validation
 

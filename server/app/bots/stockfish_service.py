@@ -5,6 +5,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
+import chess
+import chess.engine
+
 
 @dataclass(frozen=True)
 class StockfishService:
@@ -21,3 +24,43 @@ class StockfishService:
     @property
     def is_configured(self) -> bool:
         return self.binary_path is not None
+
+    @property
+    def is_available(self) -> bool:
+        return (
+            self.binary_path is not None
+            and self.binary_path.is_file()
+            and os.access(self.binary_path, os.X_OK)
+        )
+
+    @property
+    def availability_error(self) -> str | None:
+        if self.binary_path is None:
+            return "Set STOCKFISH_PATH to an executable Stockfish binary"
+        if not self.is_available:
+            return "STOCKFISH_PATH does not point to an executable file"
+        return None
+
+    def best_move(self, board: chess.Board, move_actions: list[str], time_limit_ms: int = 100) -> str | None:
+        if not self.is_available or not move_actions:
+            return None
+
+        try:
+            with chess.engine.SimpleEngine.popen_uci(
+                str(self.binary_path),
+                timeout=max(1.0, (time_limit_ms / 1000) + 1.0),
+            ) as engine:
+                result = engine.play(board, chess.engine.Limit(time=max(0.001, time_limit_ms / 1000)))
+        except (OSError, TimeoutError, chess.engine.EngineError, chess.engine.EngineTerminatedError):
+            return None
+
+        allowed = set(move_actions)
+        if result.move is None:
+            return None
+
+        best = result.move.uci()
+        if best in allowed:
+            return best
+        if len(best) >= 4 and best[:4] in allowed:
+            return best[:4]
+        return None

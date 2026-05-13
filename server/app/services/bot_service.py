@@ -13,14 +13,30 @@ class BotService:
             game.turn = game.human_color
             return game
 
-        bot = bot_spec.factory()
+        bot = game.bot_player
+        if bot is None:
+            bot = bot_spec.factory()
+            game.bot_player = bot
+            start_game = getattr(bot, "start_game", None)
+            if start_game is not None:
+                start_game(game.human_color.opposite.value)
+
+        handle_opponent_move = getattr(bot, "handle_opponent_move", None)
+        if handle_opponent_move is not None:
+            handle_opponent_move(capture_square=game.bot_pending_capture_square)
+        game.bot_pending_capture_square = None
+
         sense_square = bot.choose_sense(game.engine.sense_actions(), game.engine.move_actions(), seconds_left)
         sense_result = game.engine.sense(sense_square) if sense_square else []
         bot.handle_sense_result(
             [(square, piece_type, color.value if color else None) for square, piece_type, color in sense_result]
         )
         bot_move = bot.choose_move(game.engine.move_actions(), seconds_left)
-        _requested, taken, capture_square = game.engine.move(bot_move)
+        requested, taken, capture_square = game.engine.move(bot_move)
+        handle_move_result = getattr(bot, "handle_move_result", None)
+        if handle_move_result is not None:
+            handle_move_result(requested, taken, capture_square)
+
         if taken is None:
             game.engine.pass_turn()
 
