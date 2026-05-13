@@ -11,6 +11,7 @@ interface BoardSquareProps {
   moveTarget?: boolean;
   knownEmpty: boolean;
   selectedSource?: boolean;
+  captured?: boolean;
   onClick?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
@@ -27,7 +28,8 @@ function describeSquare(
   highlighted: boolean,
   moveTarget: boolean,
   knownEmpty: boolean,
-  selectedSource: boolean
+  selectedSource: boolean,
+  captured: boolean
 ) {
   const parts = [square];
 
@@ -51,6 +53,10 @@ function describeSquare(
     parts.push("selected source");
   }
 
+  if (captured) {
+    parts.push("recently captured piece square");
+  }
+
   return parts.join(", ");
 }
 
@@ -62,6 +68,7 @@ export function BoardSquare({
   moveTarget = false,
   knownEmpty,
   selectedSource = false,
+  captured = false,
   onClick,
   onMouseEnter,
   onMouseLeave,
@@ -79,9 +86,10 @@ export function BoardSquare({
         highlighted ? "board-square-highlighted" : "",
         moveTarget ? "board-square-move-target" : "",
         knownEmpty ? "board-square-known-empty" : "",
-        selectedSource ? "board-square-selected-source" : ""
+        selectedSource ? "board-square-selected-source" : "",
+        captured ? "board-square-captured" : ""
       ].join(" ")}
-      aria-label={describeSquare(square, piece, highlighted, moveTarget, knownEmpty, selectedSource)}
+      aria-label={describeSquare(square, piece, highlighted, moveTarget, knownEmpty, selectedSource, captured)}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
