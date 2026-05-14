@@ -24,4 +24,4 @@ services:
       server:
         condition: service_healthy
     ports:
-      - "8080:80"
+      - "8081:80"
