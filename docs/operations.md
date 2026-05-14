@@ -73,8 +73,7 @@ Open `http://localhost:8080/`.
 The Docker stack is intentionally simple:
 
 - `server` runs FastAPI on the internal Docker network at port `8000`;
-- by default, the server image does not install Stockfish, so `random` and `attacker` are available;
-- set `INSTALL_STOCKFISH=true` during build to install the Debian `stockfish` package and enable `trout`;
+- by default, the server image installs the Debian `stockfish` package and sets `STOCKFISH_PATH=/usr/games/stockfish`, so `trout` is available;
 - `client` serves the built React app with Nginx on host port `8080`;
 - Nginx proxies browser requests from `/api/` to `http://server:8000/api/`.
 
@@ -99,10 +98,12 @@ make docker-up
 make docker-down
 ```
 
-Enable Trout in Docker:
+Build a smaller local debug image without Trout:
 
 ```bash
-INSTALL_STOCKFISH=true make docker-up
+INSTALL_STOCKFISH=false make docker-up
 ```
 
-If the Stockfish build fails with apt signature or cache-space errors, Docker Desktop is usually short on builder cache space. The default Docker stack still runs the game without Trout.
+That option is only for local troubleshooting. The shareable Docker version should use the default Stockfish-enabled build.
+
+If the Stockfish build fails with apt signature or cache-space errors, Docker Desktop is usually short on builder cache space. Free Docker build cache or build on a machine with more available Docker disk space.

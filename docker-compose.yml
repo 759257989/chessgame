@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile.server
       args:
-        INSTALL_STOCKFISH: "${INSTALL_STOCKFISH:-false}"
+        INSTALL_STOCKFISH: "${INSTALL_STOCKFISH:-true}"
     environment:
       STOCKFISH_PATH: "${STOCKFISH_PATH:-/usr/games/stockfish}"
     expose:
