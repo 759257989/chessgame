@@ -1,24 +1,62 @@
 # Reconnaissance Blind Chess
 
-Local web implementation of Reconnaissance Blind Chess with a React frontend and FastAPI backend. The current MVP supports in-memory games against available bots, 3x3 sensing, move attempts with hidden information, live clocks, pass/resign, end conditions, and repeat-game from either an active or completed game.
+A web version of Reconnaissance Blind Chess built with React, FastAPI, and Stockfish.
 
-Persistence is intentionally not included right now. Restarting the backend clears active games, and repeat-game creates a fresh in-memory game from the same setup.
+The game supports hidden-information chess turns: sense a 3x3 area, then move, pass, or resign. Games are stored in backend memory for now, so restarting the backend clears active games.
 
 ## Features
 
-- Human color selection: random, white, or black.
-- Bot selection loads from the backend registry: `random` and `attacker` are playable by default.
-- `trout` becomes playable when `STOCKFISH_PATH` points to an executable Stockfish binary.
-- Future bot slots remain visible as disabled options with clear unavailable reasons.
-- RBC turn flow: sense, move or pass, bot response, then the next human sense turn.
-- Hidden opponent pieces are only revealed inside the active sense result.
-- Timer modes: 15:00 strict, or 15:00 with 5-second increment.
-- Timeout finalization, resign, king-capture wins, and automatic RBC 50-move draw.
-- Repeat game anytime from the sidebar while preserving color, bot, and timer setup.
+- Choose human color: random, white, or black.
+- Play against `random`, `attacker`, or `trout`.
+- `trout` uses Stockfish for move selection.
+- Sense a 3x3 board area before each move.
+- Hidden opponent pieces are only shown inside the latest sense result.
+- Live clocks with 15:00 + 5 second increment.
+- Move attempts, pass, resign, timeout, king capture, and RBC 50-move draw.
+- Repeat game anytime with the same color, bot, and timer setup.
 
-## Development
+## Quick Start With Docker
 
-Install server dependencies:
+Docker is the easiest way to run the full app and share it with others.
+
+```bash
+make docker-up
+```
+
+Open:
+
+```text
+http://localhost:8080
+```
+
+The Docker version runs:
+
+- `client`: Nginx serving the React app.
+- `server`: FastAPI backend with Stockfish installed inside the container.
+
+People using the Docker version do not need to install Stockfish on their own computer. `trout` is available by default.
+
+Stop Docker:
+
+```bash
+make docker-down
+```
+
+Build without starting:
+
+```bash
+make docker-build
+```
+
+For a smaller local debug image without Stockfish:
+
+```bash
+INSTALL_STOCKFISH=false make docker-up
+```
+
+## Local Development
+
+Install backend dependencies:
 
 ```bash
 cd server
@@ -27,64 +65,89 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-Install client dependencies:
+Install frontend dependencies:
 
 ```bash
 cd client
 npm install
 ```
 
-Run both dev servers from the repo root:
+To use `trout` during local development, install Stockfish on your machine and set:
+
+```bash
+export STOCKFISH_PATH="$(which stockfish)"
+```
+
+Run the backend and frontend in two terminals from the repository root:
 
 ```bash
 make server-dev
 make client-dev
 ```
 
-Then open `http://127.0.0.1:5173/`.
+Open:
 
-The Vite dev server proxies API calls to `http://127.0.0.1:8000`.
-
-## Configuration
-
-Copy `.env.example` if you want to document local environment values. Set `STOCKFISH_PATH` to an executable Stockfish binary to enable `trout`:
-
-```bash
-STOCKFISH_PATH=/opt/homebrew/bin/stockfish
+```text
+http://127.0.0.1:5173
 ```
+
+The Vite dev server proxies `/api` requests to `http://127.0.0.1:8000`.
 
 ## Validation
 
-Run focused checks:
+Run backend tests:
 
 ```bash
 make server-test
+```
+
+Run frontend checks:
+
+```bash
 make client-test
 make client-build
+```
+
+Run Playwright smoke tests:
+
+```bash
 make client-e2e
 ```
 
-Run the full local validation suite:
+Run the combined local suite:
 
 ```bash
 make test
 ```
 
-Run browser smoke tests:
+## Troubleshooting
+
+If the page does not load, check that both servers are running:
 
 ```bash
-cd client
-npx playwright test
+curl -s http://127.0.0.1:8000/api/health
+curl -s http://127.0.0.1:5173/
 ```
 
-## Command Reference
+If `trout` is unavailable in local development, check:
 
 ```bash
-make server-dev     # FastAPI dev server on 127.0.0.1:8000
-make client-dev     # Vite dev server on 127.0.0.1:5173
-make server-test    # Backend pytest suite
-make client-test    # Vitest component tests
-make client-build   # TypeScript and Vite production build
-make client-e2e     # Playwright browser smoke tests
-make test           # Backend tests, client tests, and client build
+echo "$STOCKFISH_PATH"
+test -x "$STOCKFISH_PATH"
+```
+
+If a game disappears after restart, start a new game. Persistence is intentionally not included yet.
+
+## Commands
+
+```bash
+make server-dev     # Run FastAPI on 127.0.0.1:8000
+make client-dev     # Run Vite on 127.0.0.1:5173
+make docker-up      # Run Docker app on http://localhost:8080
+make docker-down    # Stop Docker containers
+make server-test    # Run backend tests
+make client-test    # Run frontend tests
+make client-build   # Build frontend
+make client-e2e     # Run browser smoke tests
+make test           # Run main local checks
 ```
