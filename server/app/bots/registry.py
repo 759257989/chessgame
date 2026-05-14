@@ -5,6 +5,7 @@ from app.bots.attacker_bot import AttackerBot
 from app.bots.base import BotPlayer
 from app.bots.random_bot import RandomBot
 from app.bots.stockfish_service import StockfishService
+from app.bots.trout_bot import TroutBot
 from app.domain.types import BotAvailability
 
 
@@ -18,58 +19,63 @@ class BotSpec:
     unavailable_reason: str | None = None
 
 
-_REGISTRY: dict[str, BotSpec] = {
-    "random": BotSpec(
-        id="random",
-        name="random",
-        description="Senses and moves randomly.",
-        availability=BotAvailability.AVAILABLE,
-        factory=RandomBot,
-    ),
-    "attacker": BotSpec(
-        id="attacker",
-        name="attacker",
-        description="Senses randomly and tries a simple attacking plan.",
-        availability=BotAvailability.AVAILABLE,
-        factory=AttackerBot,
-    ),
-    "trout": BotSpec(
-        id="trout",
-        name="trout",
-        description="Tracks a naive board state and uses Stockfish.",
-        availability=BotAvailability.UNAVAILABLE,
-        unavailable_reason="Requires Stockfish integration",
-    ),
-    "oracle": BotSpec(
-        id="oracle",
-        name="Oracle",
-        description="Tracks possible board states and uses Stockfish plus heuristics.",
-        availability=BotAvailability.UNAVAILABLE,
-        unavailable_reason="Not bundled in the local MVP",
-    ),
-    "marmot": BotSpec(
-        id="marmot",
-        name="Marmot",
-        description="Uses Monte Carlo counterfactual regret minimization ideas.",
-        availability=BotAvailability.UNAVAILABLE,
-        unavailable_reason="Not bundled in the local MVP",
-    ),
-}
+def _trout_spec() -> BotSpec:
+    stockfish = StockfishService.from_environment()
+    if stockfish.is_available:
+        return BotSpec(
+            id="trout",
+            name="trout",
+            description="Tracks a naive board state and uses Stockfish.",
+            availability=BotAvailability.AVAILABLE,
+            factory=lambda: TroutBot(stockfish=stockfish),
+        )
 
-_STOCKFISH = StockfishService.from_environment()
-if _STOCKFISH.is_configured:
-    _REGISTRY["trout"] = BotSpec(
+    return BotSpec(
         id="trout",
         name="trout",
         description="Tracks a naive board state and uses Stockfish.",
         availability=BotAvailability.UNAVAILABLE,
-        unavailable_reason="Stockfish is configured, but TroutBot is not implemented in this MVP yet.",
+        unavailable_reason=stockfish.availability_error,
     )
 
 
+def _build_registry() -> dict[str, BotSpec]:
+    return {
+        "random": BotSpec(
+            id="random",
+            name="random",
+            description="Senses and moves randomly.",
+            availability=BotAvailability.AVAILABLE,
+            factory=RandomBot,
+        ),
+        "attacker": BotSpec(
+            id="attacker",
+            name="attacker",
+            description="Senses randomly and tries a simple attacking plan.",
+            availability=BotAvailability.AVAILABLE,
+            factory=AttackerBot,
+        ),
+        "trout": _trout_spec(),
+        "oracle": BotSpec(
+            id="oracle",
+            name="Oracle",
+            description="Tracks possible board states and uses Stockfish plus heuristics.",
+            availability=BotAvailability.UNAVAILABLE,
+            unavailable_reason="Not bundled in the local MVP",
+        ),
+        "marmot": BotSpec(
+            id="marmot",
+            name="Marmot",
+            description="Uses Monte Carlo counterfactual regret minimization ideas.",
+            availability=BotAvailability.UNAVAILABLE,
+            unavailable_reason="Not bundled in the local MVP",
+        ),
+    }
+
+
 def list_bot_specs() -> list[BotSpec]:
-    return list(_REGISTRY.values())
+    return list(_build_registry().values())
 
 
 def get_bot_spec(bot_id: str) -> BotSpec:
-    return _REGISTRY[bot_id]
+    return _build_registry()[bot_id]

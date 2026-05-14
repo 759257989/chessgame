@@ -1,6 +1,7 @@
 import random
 import time
 from collections.abc import Callable
+from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -56,6 +57,8 @@ class GameRecord(BaseModel):
     known_empty_squares_from_sense: list[str] = Field(default_factory=list)
     result: GameResultView | None = None
     engine: ReconchessEngine = Field(default_factory=ReconchessEngine)
+    bot_player: Any | None = None
+    bot_pending_capture_square: str | None = None
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -193,6 +196,7 @@ class GameService:
         if taken is None:
             game.add_event("illegal_move", "That move did not succeed. Your turn is over.")
         elif capture_square is not None:
+            game.bot_pending_capture_square = capture_square
             game.add_event("capture", f"You captured a piece on {capture_square}.")
         else:
             game.add_event("move", f"Move played: {taken}.")

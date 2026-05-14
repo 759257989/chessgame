@@ -52,6 +52,7 @@ interface ChessBoardProps {
   selectedSource?: string | null;
   hoveredSenseCenter?: string | null;
   moveTargetsBySource?: Record<string, string[]>;
+  capturedSquare?: string | null;
   onSquareClick?: (square: string) => void;
   onMoveAttempt?: (source: string, target: string) => void;
   onSenseHover?: (square: string | null) => void;
@@ -63,6 +64,7 @@ export function ChessBoard({
   selectedSource,
   hoveredSenseCenter,
   moveTargetsBySource,
+  capturedSquare,
   onSquareClick,
   onMoveAttempt,
   onSenseHover
@@ -156,6 +158,7 @@ export function ChessBoard({
                 moveTarget={phase === "move" && activeMoveTargetSet.has(square)}
                 knownEmpty={board.knownEmptySquaresFromSense.includes(square)}
                 selectedSource={selectedSource === square}
+                captured={capturedSquare === square}
                 onClick={() => handleSquareClick(square)}
                 onMouseEnter={phase === "sense" ? () => onSenseHover?.(square) : () => handleMoveHover(square)}
                 onMouseLeave={phase === "sense" ? () => onSenseHover?.(null) : () => handleMoveHover(null)}

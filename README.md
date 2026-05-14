@@ -7,7 +7,8 @@ Persistence is intentionally not included right now. Restarting the backend clea
 ## Features
 
 - Human color selection: random, white, or black.
-- Bot selection loads from the backend registry: `random` and `attacker` are playable.
+- Bot selection loads from the backend registry: `random` and `attacker` are playable by default.
+- `trout` becomes playable when `STOCKFISH_PATH` points to an executable Stockfish binary.
 - Future bot slots remain visible as disabled options with clear unavailable reasons.
 - RBC turn flow: sense, move or pass, bot response, then the next human sense turn.
 - Hidden opponent pieces are only revealed inside the active sense result.
@@ -46,7 +47,11 @@ The Vite dev server proxies API calls to `http://127.0.0.1:8000`.
 
 ## Configuration
 
-Copy `.env.example` if you want to document local environment values. `STOCKFISH_PATH` is reserved for future Stockfish-backed bots; setting it does not make trout/oracle/marmot playable yet.
+Copy `.env.example` if you want to document local environment values. Set `STOCKFISH_PATH` to an executable Stockfish binary to enable `trout`:
+
+```bash
+STOCKFISH_PATH=/opt/homebrew/bin/stockfish
+```
 
 ## Validation
 
