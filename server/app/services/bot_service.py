@@ -23,7 +23,13 @@ class BotService:
 
         handle_opponent_move = getattr(bot, "handle_opponent_move", None)
         if handle_opponent_move is not None:
-            handle_opponent_move(capture_square=game.bot_pending_capture_square)
+            handle_opponent_move(
+                requested_move=game.bot_pending_opponent_requested_move,
+                taken_move=game.bot_pending_opponent_taken_move,
+                capture_square=game.bot_pending_capture_square,
+            )
+        game.bot_pending_opponent_requested_move = None
+        game.bot_pending_opponent_taken_move = None
         game.bot_pending_capture_square = None
 
         sense_square = bot.choose_sense(game.engine.sense_actions(), game.engine.move_actions(), seconds_left)

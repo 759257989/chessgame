@@ -58,6 +58,8 @@ class GameRecord(BaseModel):
     result: GameResultView | None = None
     engine: ReconchessEngine = Field(default_factory=ReconchessEngine)
     bot_player: Any | None = None
+    bot_pending_opponent_requested_move: str | None = None
+    bot_pending_opponent_taken_move: str | None = None
     bot_pending_capture_square: str | None = None
 
     model_config = {"arbitrary_types_allowed": True}
@@ -184,7 +186,10 @@ class GameService:
         TurnService(turn=game.turn, human_color=game.human_color, phase=game.phase).require_human_move()
 
         promotion = request.promotion or ""
-        _requested, taken, capture_square = game.engine.move(f"{request.source}{request.target}{promotion}")
+        requested, taken, capture_square = game.engine.move(f"{request.source}{request.target}{promotion}")
+        game.bot_pending_opponent_requested_move = requested
+        game.bot_pending_opponent_taken_move = taken
+        game.bot_pending_capture_square = capture_square
         if taken is None:
             game.engine.pass_turn()
         self._clear_sense_result(game)
@@ -196,7 +201,6 @@ class GameService:
         if taken is None:
             game.add_event("illegal_move", "That move did not succeed. Your turn is over.")
         elif capture_square is not None:
-            game.bot_pending_capture_square = capture_square
             game.add_event("capture", f"You captured a piece on {capture_square}.")
         else:
             game.add_event("move", f"Move played: {taken}.")
@@ -218,6 +222,9 @@ class GameService:
 
         self._clear_sense_result(game)
         game.engine.pass_turn()
+        game.bot_pending_opponent_requested_move = None
+        game.bot_pending_opponent_taken_move = None
+        game.bot_pending_capture_square = None
         self._clock_for_color(game, game.turn).stop_turn(monotonic_now)
         game.turn = game.human_color.opposite
         game.phase = GamePhase.BOT_THINKING

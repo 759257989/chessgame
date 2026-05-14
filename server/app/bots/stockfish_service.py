@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
 
@@ -9,9 +9,10 @@ import chess
 import chess.engine
 
 
-@dataclass(frozen=True)
+@dataclass
 class StockfishService:
     binary_path: Path | None = None
+    _engine: chess.engine.SimpleEngine | None = field(default=None, init=False, repr=False)
 
     @classmethod
     def from_environment(cls, environ: Mapping[str, str] | None = None) -> "StockfishService":
@@ -46,12 +47,10 @@ class StockfishService:
             return None
 
         try:
-            with chess.engine.SimpleEngine.popen_uci(
-                str(self.binary_path),
-                timeout=max(1.0, (time_limit_ms / 1000) + 1.0),
-            ) as engine:
-                result = engine.play(board, chess.engine.Limit(time=max(0.001, time_limit_ms / 1000)))
+            engine = self._engine_instance(time_limit_ms)
+            result = engine.play(board, chess.engine.Limit(time=max(0.001, time_limit_ms / 1000)))
         except (OSError, TimeoutError, chess.engine.EngineError, chess.engine.EngineTerminatedError):
+            self.close()
             return None
 
         allowed = set(move_actions)
@@ -64,3 +63,24 @@ class StockfishService:
         if len(best) >= 4 and best[:4] in allowed:
             return best[:4]
         return None
+
+    def close(self) -> None:
+        if self._engine is None:
+            return
+
+        try:
+            self._engine.quit()
+        except (OSError, TimeoutError, chess.engine.EngineError, chess.engine.EngineTerminatedError):
+            pass
+        finally:
+            self._engine = None
+
+    def _engine_instance(self, time_limit_ms: int) -> chess.engine.SimpleEngine:
+        if self.binary_path is None:
+            raise OSError("Stockfish is not configured")
+        if self._engine is None:
+            self._engine = chess.engine.SimpleEngine.popen_uci(
+                str(self.binary_path),
+                timeout=max(1.0, (time_limit_ms / 1000) + 1.0),
+            )
+        return self._engine

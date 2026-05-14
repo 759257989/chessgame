@@ -1,4 +1,4 @@
-.PHONY: help server-dev server-test client-dev client-test client-build client-e2e test
+.PHONY: help server-dev server-test client-dev client-test client-build client-e2e docker-build docker-up docker-down test
 
 help:
 	@printf "RBC chess development commands:\n"
@@ -8,6 +8,9 @@ help:
 	@printf "  make client-test   Run Vitest component tests once\n"
 	@printf "  make client-build  Run TypeScript and Vite build\n"
 	@printf "  make client-e2e    Run Playwright browser smoke tests\n"
+	@printf "  make docker-build  Build Docker images\n"
+	@printf "  make docker-up     Run the Dockerized app on http://localhost:8080\n"
+	@printf "  make docker-down   Stop the Dockerized app\n"
 	@printf "  make test          Run all local validation checks\n"
 
 server-dev:
@@ -27,5 +30,14 @@ client-build:
 
 client-e2e:
 	cd client && npx playwright test
+
+docker-build:
+	docker compose build
+
+docker-up:
+	docker compose up --build
+
+docker-down:
+	docker compose down
 
 test: server-test client-test client-build

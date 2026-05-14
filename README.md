@@ -45,6 +45,43 @@ Then open `http://127.0.0.1:5173/`.
 
 The Vite dev server proxies API calls to `http://127.0.0.1:8000`.
 
+## Docker
+
+Build and run the game in Docker from the repository root:
+
+```bash
+make docker-up
+```
+
+Then open `http://localhost:8080/`.
+
+The Docker setup runs two containers:
+
+- `server`: FastAPI backend. By default it runs `random` and `attacker`.
+- `client`: Nginx serving the React production build and proxying `/api` to the backend.
+
+To build a backend image that also installs Stockfish for the `trout` bot:
+
+```bash
+INSTALL_STOCKFISH=true make docker-up
+```
+
+That optional build path requires enough Docker Desktop build cache and disk space for the Debian `stockfish` package. If Docker reports apt signature or cache-space errors, run the default Docker stack first and use `random` or `attacker` until Docker cache space is cleaned.
+
+Stop the containers:
+
+```bash
+make docker-down
+```
+
+Build without starting:
+
+```bash
+make docker-build
+```
+
+The app still uses in-memory games in Docker. Restarting the backend container clears active games.
+
 ## Configuration
 
 Copy `.env.example` if you want to document local environment values. Set `STOCKFISH_PATH` to an executable Stockfish binary to enable `trout`:
